@@ -13,7 +13,10 @@ const router = express.Router();
 const DB_NAME = process.env.DB_NAME
 const DB_COLLECTION_NAME = process.env.DB_COLLECTION_NAME
 
-
+/**
+ * @param {string} folder_name
+ * @param {string} sort
+ */
 router.get('/get_records', async(req, res) => {
     const folder_name = req.query.folder_name;
     const sort = req.query.sort
