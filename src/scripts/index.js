@@ -6,7 +6,8 @@ import {
     readData,
     updateData,
     createBulkData,
-    deleteBulkData
+    deleteBulkData,
+    deleteCollection
 } from './mongodbUtils';
 import { query } from "./postgresUtils";
 
@@ -135,6 +136,11 @@ router.put('/put_records', async(req, res) => {
 
 })
 
+router.delete('/delete_collection', async(req, res) => {
+    let delete_collection_data = await deleteCollection(DB_NAME, DB_COLLECTION_NAME, {})
+    return res.send(delete_collection_data)
+})
+
 function treeify(files) {
     var path = require('path')
 
@@ -167,7 +173,7 @@ function treeify(files) {
 
 // below endpoints implemented with postgres
 
-const POSTGRES_DB_NAME = "section";
+const POSTGRES_DB_NAME = process.env.POSTGRES_DB_NAME;
 
 router.get('/records', async(req, res) => {
     try {
@@ -227,9 +233,11 @@ router.post('/records', async(req, res) => {
                 value += ","
             }
         })
+
         if (!valid) {
             return res.send({ "status": "failure", "message": "Missing params" })
         }
+
         console.log(sql_query + value)
         query(sql_query + value).then(data => {
             // Notify other users if someone adds a file/folder in the system.
@@ -238,6 +246,7 @@ router.post('/records', async(req, res) => {
             console.log("err", err)
             return res.sendStatus(400)
         })
+
     } catch (err) {
         return res.sendStatus(400)
     }
@@ -282,11 +291,9 @@ router.put('/records', async(req, res) => {
         const source_data = body[0]
         const destination_data = body[1]
 
-        if (!source_data.id || !destination_data.id) {
-            return res.send({ "status": "failure", "message": "Missing id" })
+        if (!source_data.id || !source_data.parent_path || !destination_data.id) {
+            return res.send({ "status": "failure", "message": "Missing id or path" })
         }
-
-        // use destination id as null for move into root 
 
         const sql_query = `UPDATE ${POSTGRES_DB_NAME} SET parent_id = ${destination_data.id} where id = ${source_data.id};`
         console.log("treeify -> sql_query", sql_query)
@@ -317,6 +324,16 @@ router.put('/records', async(req, res) => {
         return res.sendStatus(400)
     }
 
+})
+
+router.delete('/delete_table', async(req, res) => {
+    const sql_query = `TRUNCATE TABLE ${POSTGRES_DB_NAME} RESTART IDENTITY;`
+    query(sql_query).then(data => {
+        return res.send(data)
+    }).catch(err => {
+        console.log("err", err)
+        return res.sendStatus(400)
+    })
 })
 
 module.exports = router

@@ -1,5 +1,5 @@
 # trons
-
+    * Implemented in both postgres and mongodb
 # Technologies
     * Heroku(hosting) 
     * Nodejs 

@@ -299,6 +299,41 @@ function findOne(dbName, collectionName, values) {
     }
 }
 
+function deleteCollection(dbName, collectionName, values) {
+    values = {}
+    try {
+        return new Promise((resolve, reject) => {
+            mongodb.connect(
+                MONGO_URI, {
+                    useNewUrlParser: true,
+                    useUnifiedTopology: true
+                },
+                (err, client) => {
+                    logger.info('Connected to Mongo Cluster')
+                    if (err) {
+                        logger.error(err)
+                        reject(err)
+                    } else {
+                        const db = client.db(dbName)
+                        const collection = db.collection(collectionName)
+                        collection.deleteMany(values, (err, result) => {
+                            if (err) {
+                                logger.error(err)
+                                reject(err)
+                            } else {
+                                resolve(result)
+                            }
+                        })
+                    }
+                    // client.close()
+                }
+            )
+        })
+    } catch (error) {
+        logger.error(error)
+    }
+}
+
 // function searchData(dbName, collectionName, values, skip, limit) {
 //   skip = skip ? skip : 0
 //   limit = limit ? limit : 0
@@ -352,6 +387,7 @@ module.exports = {
     removeData,
     findOne,
     createBulkData,
-    deleteBulkData
+    deleteBulkData,
+    deleteCollection
     // searchData
 };
