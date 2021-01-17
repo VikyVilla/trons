@@ -64,14 +64,20 @@ router.post('/create_records', async(req, res) => {
 router.delete('/delete_records', async(req, res) => {
     let body = [];
 
-    // need to add some strong validation for body
     try {
+        // find and delete sub records also
         req.body.map(element => {
-            body.push(new ObjectID(element._id))
+            body.push(readData(DB_NAME, DB_COLLECTION_NAME, '', '', '', { path: { '$regex': '.*' + element.path + '.*' } }))
         });
-        // need to find and delete sub records
-        let delete_records = await deleteBulkData(DB_NAME, DB_COLLECTION_NAME, body)
-        return res.send(delete_records)
+
+        Promise.all(body).then(async(values) => {
+            values = values.flat(2)
+            values.map(element => {
+                body.push(new ObjectID(element._id))
+            });
+            let delete_records = await deleteBulkData(DB_NAME, DB_COLLECTION_NAME, body)
+            return res.send(delete_records)
+        })
     } catch (err) {
         return res.sendStatus(400)
     }
@@ -276,7 +282,7 @@ router.put('/records', async(req, res) => {
         const source_data = body[0]
         const destination_data = body[1]
 
-        if (!source_data.id || !destination_data) {
+        if (!source_data.id || !destination_data.id) {
             return res.send({ "status": "failure", "message": "Missing id" })
         }
 
@@ -284,8 +290,25 @@ router.put('/records', async(req, res) => {
 
         const sql_query = `UPDATE ${POSTGRES_DB_NAME} SET parent_id = ${destination_data.id} where id = ${source_data.id};`
         console.log("treeify -> sql_query", sql_query)
-        query(sql_query).then(data => {
-            return res.send(data)
+
+        query(sql_query).then(async data => {
+            let get_source_sub_files = await query(`SELECT * FROM ${POSTGRES_DB_NAME} WHERE parent_path ~ '${source_data.parent_path}.*' `);
+            let sql_query = `INSERT INTO ${POSTGRES_DB_NAME} ( type , name, parent_id) VALUES `
+            let value = ""
+
+            get_source_sub_files.data.map((element, index) => {
+                value += `('${element.type}', '${element.name}', ${element.parent_id})`
+                if (get_source_sub_files.data.length - 1 == index) {
+                    value += ";"
+                } else {
+                    value += ","
+                }
+            })
+            console.log(sql_query + value)
+            let update_source_sub_files = await query(sql_query + value)
+            let delete_old_source_sub_files = await query(`DELETE FROM ${POSTGRES_DB_NAME} WHERE parent_path ~ '${source_data.parent_path}.*';`)
+
+            return res.send(update_source_sub_files)
         }).catch(err => {
             console.log("err", err)
             return res.sendStatus(400)

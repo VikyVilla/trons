@@ -31,22 +31,41 @@ async function query(query) {
 
 module.exports = { query }
 
+// ref: https://coderwall.com/p/whf3-a/hierarchical-data-in-postgres
+// ref: https://coderwall.com/p/z00-yw/use-ltreee-plv8-to-fetch-hirarcical-records-as-json
 
+// CREATE EXTENSION ltree;
 
 // CREATE TABLE section (
-//     id INTEGER PRIMARY KEY,
+//     id SERIAL PRIMARY KEY,
 //     type TEXT,
 //     name TEXT,
 //     parent_id INTEGER REFERENCES section,
 //     parent_path LTREE
 // );
 
-// INSERT INTO section ( name, parent_path) VALUES ( 'Section 1', NULL);
-// INSERT INTO section ( name, parent_id) VALUES ( 'Section A.1', 1);
-// INSERT INTO section ( name, parent_id) VALUES ( 'Section B', NULL);
-// INSERT INTO section ( name, parent_id) VALUES ( 'Section B.1', 3);
-// INSERT INTO section ( name, parent_id) VALUES ( 'Section B.2', 3);
-// INSERT INTO section ( name, parent_id) VALUES ( 'Section B.2.1', 5);
+// CREATE INDEX section_parent_path_idx ON section USING GIST (parent_path);
+// CREATE INDEX section_parent_id_idx ON section (parent_id);
 
-// ref: https://coderwall.com/p/whf3-a/hierarchical-data-in-postgres
-// ref: https://coderwall.com/p/z00-yw/use-ltreee-plv8-to-fetch-hirarcical-records-as-json
+// CREATE OR REPLACE FUNCTION update_section_parent_path() RETURNS TRIGGER AS $$
+//     DECLARE
+//         path ltree;
+//     BEGIN
+//         IF NEW.parent_id IS NULL THEN
+//             NEW.parent_path = 'root'::ltree || NEW.id::text;
+//         ELSEIF TG_OP = 'INSERT' OR OLD.parent_id IS NULL OR OLD.parent_id != NEW.parent_id THEN
+//             SELECT parent_path || id::text FROM section WHERE id = NEW.parent_id INTO path;
+//             IF path IS NULL THEN
+//                 RAISE EXCEPTION 'Invalid parent_id %', NEW.parent_id;
+//             END IF;
+//             NEW.parent_path = path;
+//         END IF;
+//         RETURN NEW;
+//     END;
+// $$ LANGUAGE plpgsql;
+
+// TRUNCATE TABLE section RESTART IDENTITY;
+
+// CREATE TRIGGER parent_path_tgr
+//     BEFORE INSERT OR UPDATE ON section
+//     FOR EACH ROW EXECUTE PROCEDURE update_section_parent_path();

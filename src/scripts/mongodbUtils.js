@@ -113,7 +113,7 @@ async function readData(dbName, collectionName, sort, skip, limit, values) {
                         const collection = db.collection(collectionName)
                         collection.find(values)
                             .sort({
-                                _id: sorting
+                                _id: Number(sorting)
                             })
                             .skip(skipNos)
                             .limit(limitNos)
